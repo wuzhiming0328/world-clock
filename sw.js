@@ -1,7 +1,10 @@
-const CACHE = "worldclock-v1";
+const BUILD = "20260429";
+const CACHE = "worldclock-" + BUILD;
 const SHELL = [
-  "./world-clock.html",
-  "./manifest.json",
+  "/world-clock/world-clock.html",
+  "/world-clock/manifest.json",
+  "/world-clock/icons/icon-192.png",
+  "/world-clock/icons/icon-512.png",
   "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
 ];
 

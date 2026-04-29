@@ -6,7 +6,7 @@
   <title>World Clock</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json" />
+  <link rel="manifest" href="/world-clock/manifest.json" />
   <meta name="theme-color" content="#3b82f6" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0e1021" media="(prefers-color-scheme: dark)" />
 
@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="World Clock" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/world-clock/icons/icon-192.png" />
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
@@ -442,6 +442,15 @@
       .sec-lbl { font-size: 0.95rem; }
       .card-body { gap: 12px; }
     }
+    @media (max-width: 360px) {
+      .time-digits { font-size: 1.5rem; }
+      .sec-lbl { font-size: 0.8rem; }
+      .card-body { gap: 8px; }
+      .card { padding: 14px 14px 12px; }
+      .clock-wrap canvas { width: 110px !important; height: 110px !important; }
+      .city-name { font-size: 0.88rem; }
+      .diff-pill { font-size: 0.65rem; }
+    }
 
     /* ── Touch drag ── */
     .drag-handle { touch-action: none; }
@@ -635,7 +644,7 @@ zones = zones.map(z => {
 
 const saveZones = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(zones));
 
-// Auto-detect local city: ensure it's present and first, unless user removed it
+// Auto-detect local city: add it if missing, but never move it if already present
 const LOCAL_PINNED_KEY = "worldclock_local_pinned";
 (() => {
   if (localStorage.getItem(LOCAL_PINNED_KEY) === "false") return;
@@ -647,11 +656,8 @@ const LOCAL_PINNED_KEY = "worldclock_local_pinned";
     const country = def?.country ?? myTz.split("/")[0];
     zones.unshift({ city, country, tz: myTz, lat: def?.lat ?? null, lon: def?.lon ?? null });
     saveZones();
-  } else if (idx > 0) {
-    const [local] = zones.splice(idx, 1);
-    zones.unshift(local);
-    saveZones();
   }
+  // Position is preserved as stored — drag reorder is now fully persistent
 })();
 
 /* ─────────────────────────────────────────────
@@ -684,7 +690,7 @@ function getTimeParts(now, tz) {
 }
 
 function period(h) {
-  if (h >= 7 && h < 19) return "day";
+  if (h >= 6 && h < 18) return "day";
   return "night";
 }
 
@@ -834,11 +840,11 @@ function drawClock(canvas, parts, p) {
   const ringR = R * 0.97;
   const ringW = 6;
   const toAngle = h => (h / 24) * 2 * Math.PI - Math.PI / 2;
-  // Day arc: 06:00 → 20:00
-  ctx.beginPath(); ctx.arc(cx, cy, ringR, toAngle(6), toAngle(20));
+  // Day arc: 06:00 → 18:00
+  ctx.beginPath(); ctx.arc(cx, cy, ringR, toAngle(6), toAngle(18));
   ctx.strokeStyle = t.ringDay; ctx.lineWidth = ringW; ctx.stroke();
   // Night arc
-  ctx.beginPath(); ctx.arc(cx, cy, ringR, toAngle(20), toAngle(6 + 24));
+  ctx.beginPath(); ctx.arc(cx, cy, ringR, toAngle(18), toAngle(6 + 24));
   ctx.strokeStyle = t.ringNight; ctx.lineWidth = ringW; ctx.stroke();
   // Current hour dot on ring
   const h24angle = toAngle(parts.hour + parts.minute / 60);
@@ -971,16 +977,26 @@ async function fetchWeather(zone) {
   // Avoid duplicate in-flight fetches for the same coordinates
   if (cached && cached.fetching) return;
   weatherCache[key] = { ...(cached || {}), fetching: true };
+  setWeatherLoading(zone, true);
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${zone.lat}&longitude=${zone.lon}&current_weather=true`;
     const res  = await fetch(url);
-    if (!res.ok) { delete weatherCache[key]; return; }
+    if (!res.ok) { delete weatherCache[key]; setWeatherLoading(zone, false); return; }
     const data = await res.json();
     const w    = data.current_weather;
     weatherCache[key] = { temp: Math.round(w.temperature), weathercode: w.weathercode, fetchedAt: Date.now() };
     // Update all cards sharing these coordinates
     zones.filter(z => z.lat === zone.lat && z.lon === zone.lon).forEach(updateWeatherChip);
-  } catch { delete weatherCache[key]; }
+  } catch { delete weatherCache[key]; setWeatherLoading(zone, false); }
+}
+
+function setWeatherLoading(zone, loading) {
+  const card = document.querySelector(
+    `.card[data-tz="${CSS.escape(zone.tz)}"][data-city="${CSS.escape(zone.city)}"]`
+  );
+  if (!card) return;
+  const chip = card.querySelector(".weather-chip");
+  if (chip && loading && !chip.textContent) chip.textContent = "…";
 }
 
 function updateWeatherChip(zone) {
@@ -1026,11 +1042,11 @@ function buildTimeline(card, zone) {
   if (!track) return;
   track.innerHTML = "";
 
-  // Segments: night 0-7, day 7-19, night 19-24
+  // Segments: night 0-6, day 6-18, night 18-24
   const segs = [
-    { cls:"tl-seg tl-night-early", pct: 7/24*100 },
+    { cls:"tl-seg tl-night-early", pct: 6/24*100 },
     { cls:"tl-seg tl-day",         pct:12/24*100 },
-    { cls:"tl-seg tl-night-late",  pct: 5/24*100 },
+    { cls:"tl-seg tl-night-late",  pct: 6/24*100 },
   ];
   segs.forEach(s => {
     const d = document.createElement("div");
@@ -1197,7 +1213,7 @@ function makeCard(zone, isLocal, q) {
           <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
         </div>
         <div class="diff-pill">${dl}</div>
-        <div class="weather-chip"></div>
+        <div class="weather-chip">${zone.lat != null ? "…" : ""}</div>
       </div>
     </div>
     <div class="card-expand">
@@ -1240,6 +1256,12 @@ function makeCard(zone, isLocal, q) {
     toggleExpand(card, zone);
   });
 
+  // Analog clock tap also expands
+  card.querySelector(".analog-clock").addEventListener("click", e => {
+    e.stopPropagation();
+    toggleExpand(card, zone);
+  });
+
   // City name rename
   const cityEl = card.querySelector(".city-name");
   cityEl.addEventListener("click", e => {
@@ -1274,10 +1296,13 @@ function makeCard(zone, isLocal, q) {
     }
   });
 
+const vibrate = (ms) => navigator.vibrate?.(ms);
+
   // Drag
   card.draggable = true;
   card.addEventListener("dragstart", e => {
     dragSrc = card;
+    vibrate(40);
     setTimeout(() => card.classList.add("dragging"), 0);
     e.dataTransfer.effectAllowed = "move";
   });
@@ -1300,6 +1325,7 @@ function makeCard(zone, isLocal, q) {
     if (si === -1 || di === -1) return;
     const [moved] = zones.splice(si, 1);
     zones.splice(di, 0, moved);
+    vibrate([30, 20, 30]);
     saveZones(); render();
   });
 
@@ -1323,6 +1349,7 @@ function addTouchDrag(card, zone) {
 
   handle.addEventListener("touchstart", e => {
     e.preventDefault();
+    vibrate(40);
     touchDragZone = zone;
     touchDragCard = card;
     const rect = card.getBoundingClientRect();
@@ -1366,6 +1393,7 @@ function addTouchDrag(card, zone) {
       if (si !== -1 && di !== -1 && si !== di) {
         const [moved] = zones.splice(si, 1);
         zones.splice(di, 0, moved);
+        vibrate([30, 20, 30]);
         saveZones(); render();
       }
     }
@@ -1959,7 +1987,7 @@ setInterval(tick, 1000);
 setInterval(() => zones.forEach(fetchWeather), WEATHER_TTL);
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js");
+  navigator.serviceWorker.register("/world-clock/sw.js");
 }
 </script>
 </body>
