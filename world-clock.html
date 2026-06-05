@@ -492,10 +492,10 @@
     .card {
       -webkit-user-select: none; user-select: none;
       -webkit-touch-callout: none;
+      touch-action: none;
     }
     .city-name, .city-name-input { -webkit-user-select: text; user-select: text; }
-    .card.touch-dragging { touch-action: none; box-shadow: 0 16px 48px rgba(0,0,0,0.22) !important; transform: scale(1.03) !important; z-index: 50; }
-    /* Long-press hint pulse on mobile */
+    .card.touch-dragging { box-shadow: 0 16px 48px rgba(0,0,0,0.22) !important; transform: scale(1.03) !important; z-index: 50; }
     @keyframes lp-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(79,110,247,0.4); } 50% { box-shadow: 0 0 0 8px rgba(79,110,247,0); } }
     .card.lp-ready { animation: lp-pulse 0.4s ease-out; }
 
@@ -1605,14 +1605,18 @@ function addTouchDrag(card, zone) {
     const dy = touch.clientY - lpStartY;
 
     if (lpTimer && Math.sqrt(dx*dx + dy*dy) > 8) {
-      // finger moved before long-press fired — cancel, allow scroll
       clearTimeout(lpTimer);
       lpTimer = null;
-      return;
     }
 
-    if (!lpActive) return; // long-press not yet fired, let scroll happen
-    e.preventDefault();   // long-press active — block scroll
+    if (!lpActive) {
+      // manually scroll the page since touch-action:none blocks native scroll
+      window.scrollBy(0, lpStartY - touch.clientY);
+      lpStartX = touch.clientX;
+      lpStartY = touch.clientY;
+      return;
+    }
+    e.preventDefault();
 
     if (!touchClone) return;
     touchDidDrag = true;
