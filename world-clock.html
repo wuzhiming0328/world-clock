@@ -1563,65 +1563,65 @@ function makeCard(zone, isLocal, q) {
 }
 
 /* ─────────────────────────────────────────────
-   TOUCH DRAG  (long-press → pointer capture drag)
-   Uses Pointer Events API — works on iOS 13+
+   TOUCH DRAG  (long-press → drag to reorder)
+   iOS Safari only fires touch events, not pointer events.
+   passive:false on touchstart prevents iOS locking scroll
+   for this touch sequence, so we can preventDefault on touchmove.
 ───────────────────────────────────────────── */
-let touchDragZone  = null;
-let touchDragCard  = null;
-let touchClone     = null;
-let touchLastOver  = null;
-let touchOffsetX   = 0;
-let touchOffsetY   = 0;
-let touchDidDrag   = false;
+let touchDragZone      = null;
+let touchDragCard      = null;
+let touchClone         = null;
+let touchLastOver      = null;
+let touchOffsetX       = 0;
+let touchOffsetY       = 0;
+let touchDidDrag       = false;
 let touchDidDragRecently = false;
-let lpTimer        = null;
-let lpPointerId    = null;
-let lpStartX       = 0;
-let lpStartY       = 0;
+let lpTimer            = null;
+let lpStartX           = 0;
+let lpStartY           = 0;
+let lpActive           = false; // true once long-press fires, finger still down
 
 function addTouchDrag(card, zone) {
   card.addEventListener("contextmenu", e => e.preventDefault());
 
-  card.addEventListener("pointerdown", e => {
-    if (e.pointerType === "mouse") return; // desktop uses HTML drag API
+  card.addEventListener("touchstart", e => {
     if (e.target.closest(".remove-btn, .edit-tz-btn, .city-name, button, input, canvas")) return;
-
-    lpPointerId = e.pointerId;
-    lpStartX    = e.clientX;
-    lpStartY    = e.clientY;
+    const touch = e.touches[0];
+    lpStartX = touch.clientX;
+    lpStartY = touch.clientY;
+    lpActive = false;
 
     lpTimer = setTimeout(() => {
       lpTimer = null;
+      lpActive = true;
       vibrate(60);
-      // Capture pointer so all future events come to this card
-      try { card.setPointerCapture(lpPointerId); } catch(err) {}
       startTouchDrag(card, zone, lpStartX, lpStartY);
-    }, 400);
-  });
+    }, 500);
+  }, { passive: false });
 
-  card.addEventListener("pointermove", e => {
-    if (e.pointerId !== lpPointerId) return;
+  card.addEventListener("touchmove", e => {
+    const touch = e.touches[0];
+    const dx = touch.clientX - lpStartX;
+    const dy = touch.clientY - lpStartY;
 
-    if (lpTimer) {
-      // Cancel long-press if finger moved more than 8px
-      const dx = e.clientX - lpStartX;
-      const dy = e.clientY - lpStartY;
-      if (Math.sqrt(dx*dx + dy*dy) > 8) {
-        clearTimeout(lpTimer);
-        lpTimer = null;
-        lpPointerId = null;
-      }
+    if (lpTimer && Math.sqrt(dx*dx + dy*dy) > 8) {
+      // finger moved before long-press fired — cancel, allow scroll
+      clearTimeout(lpTimer);
+      lpTimer = null;
+      return;
     }
 
-    if (!touchDragZone || !touchClone) return;
-    e.preventDefault();
+    if (!lpActive) return; // long-press not yet fired, let scroll happen
+    e.preventDefault();   // long-press active — block scroll
+
+    if (!touchClone) return;
     touchDidDrag = true;
-    touchClone.style.top  = (e.clientY - touchOffsetY) + "px";
-    touchClone.style.left = (e.clientX - touchOffsetX) + "px";
+    touchClone.style.top  = (touch.clientY - touchOffsetY) + "px";
+    touchClone.style.left = (touch.clientX - touchOffsetX) + "px";
 
     touchClone.style.visibility = "hidden";
     card.style.visibility = "hidden";
-    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
     card.style.visibility = "";
     touchClone.style.visibility = "";
 
@@ -1631,31 +1631,43 @@ function addTouchDrag(card, zone) {
       touchLastOver = (overCard && overCard !== touchDragCard) ? overCard : null;
       touchLastOver?.classList.add("drag-over");
     }
-  });
+  }, { passive: false });
 
-  card.addEventListener("pointerup", e => {
-    if (e.pointerId !== lpPointerId) return;
+  const endDrag = () => {
     clearTimeout(lpTimer);
     lpTimer = null;
-    lpPointerId = null;
-    endTouchDrag();
-  });
+    lpActive = false;
+    if (!touchDragZone) return;
+    touchClone?.remove(); touchClone = null;
+    if (touchDragCard) {
+      touchDragCard.style.opacity = "";
+      touchDragCard.classList.remove("touch-dragging");
+    }
+    touchLastOver?.classList.remove("drag-over");
+    if (touchDidDrag && touchLastOver) {
+      touchDidDragRecently = true;
+      const si = zones.findIndex(z => z.tz === touchDragZone.tz && z.city === touchDragZone.city);
+      const di = zones.findIndex(z => z.tz === touchLastOver.dataset.tz && z.city === touchLastOver.dataset.city);
+      if (si !== -1 && di !== -1 && si !== di) {
+        const [moved] = zones.splice(si, 1);
+        zones.splice(di, 0, moved);
+        vibrate([30, 20, 30]);
+        saveZones(); render();
+      }
+    }
+    touchDragZone = touchDragCard = touchLastOver = null;
+    touchDidDrag = false;
+  };
 
-  card.addEventListener("pointercancel", e => {
-    if (e.pointerId !== lpPointerId) return;
-    clearTimeout(lpTimer);
-    lpTimer = null;
-    lpPointerId = null;
-    endTouchDrag();
-  });
+  card.addEventListener("touchend",    endDrag);
+  card.addEventListener("touchcancel", endDrag);
 }
 
 function startTouchDrag(card, zone, startX, startY) {
   touchDragZone = zone;
   touchDragCard = card;
   touchDidDrag  = false;
-  card.classList.add("touch-dragging", "lp-ready");
-  setTimeout(() => card.classList.remove("lp-ready"), 400);
+  card.classList.add("touch-dragging");
 
   const rect   = card.getBoundingClientRect();
   touchOffsetX = startX - rect.left;
@@ -1671,29 +1683,6 @@ function startTouchDrag(card, zone, startX, startY) {
   `;
   document.body.appendChild(touchClone);
   card.style.opacity = "0.3";
-}
-
-function endTouchDrag() {
-  if (!touchDragZone) return;
-  touchClone?.remove(); touchClone = null;
-  if (touchDragCard) {
-    touchDragCard.style.opacity = "";
-    touchDragCard.classList.remove("touch-dragging");
-  }
-  touchLastOver?.classList.remove("drag-over");
-  if (touchDidDrag && touchLastOver) {
-    touchDidDragRecently = true;
-    const si = zones.findIndex(z => z.tz === touchDragZone.tz && z.city === touchDragZone.city);
-    const di = zones.findIndex(z => z.tz === touchLastOver.dataset.tz && z.city === touchLastOver.dataset.city);
-    if (si !== -1 && di !== -1 && si !== di) {
-      const [moved] = zones.splice(si, 1);
-      zones.splice(di, 0, moved);
-      vibrate([30, 20, 30]);
-      saveZones(); render();
-    }
-  }
-  touchDragZone = touchDragCard = touchLastOver = null;
-  touchDidDrag  = false;
 }
 
 function makeAddBtn() {
