@@ -492,7 +492,12 @@
     .card {
       -webkit-user-select: none; user-select: none;
       -webkit-touch-callout: none;
-      touch-action: none;
+    }
+    /* On touch devices: disable native touch handling on cards so iOS doesn't
+       steal the gesture. User can still scroll by swiping between cards or on
+       the header/background. */
+    @media (hover: none) {
+      .card { touch-action: none; }
     }
     .city-name, .city-name-input { -webkit-user-select: text; user-select: text; }
     .card.touch-dragging { box-shadow: 0 16px 48px rgba(0,0,0,0.22) !important; transform: scale(1.03) !important; z-index: 50; }
@@ -1610,7 +1615,7 @@ function addTouchDrag(card, zone) {
     }
 
     if (!lpActive) {
-      // manually scroll the page since touch-action:none blocks native scroll
+      // touch-action:none blocks native scroll, so do it manually
       window.scrollBy(0, lpStartY - touch.clientY);
       lpStartX = touch.clientX;
       lpStartY = touch.clientY;
