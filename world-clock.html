@@ -493,12 +493,6 @@
       -webkit-user-select: none; user-select: none;
       -webkit-touch-callout: none;
     }
-    /* On touch devices: disable native touch handling on cards so iOS doesn't
-       steal the gesture. User can still scroll by swiping between cards or on
-       the header/background. */
-    @media (hover: none) {
-      .card { touch-action: none; }
-    }
     .city-name, .city-name-input { -webkit-user-select: text; user-select: text; }
     .card.touch-dragging { box-shadow: 0 16px 48px rgba(0,0,0,0.22) !important; transform: scale(1.03) !important; z-index: 50; }
     @keyframes lp-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(79,110,247,0.4); } 50% { box-shadow: 0 0 0 8px rgba(79,110,247,0); } }
@@ -1584,10 +1578,32 @@ let touchDidDragRecently = false;
 let lpTimer            = null;
 let lpStartX           = 0;
 let lpStartY           = 0;
-let lpActive           = false; // true once long-press fires, finger still down
+let lpActive           = false;
 
 function addTouchDrag(card, zone) {
   card.addEventListener("contextmenu", e => e.preventDefault());
+
+  // dragMove is added/removed dynamically so iOS doesn't lock scroll
+  // for the whole touch sequence before we know if it's a long-press
+  function dragMove(e) {
+    if (!touchClone) return;
+    e.preventDefault();
+    touchDidDrag = true;
+    const touch = e.touches[0];
+    touchClone.style.top  = (touch.clientY - touchOffsetY) + "px";
+    touchClone.style.left = (touch.clientX - touchOffsetX) + "px";
+    touchClone.style.visibility = "hidden";
+    card.style.visibility = "hidden";
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    card.style.visibility = "";
+    touchClone.style.visibility = "";
+    const overCard = el?.closest(".card[data-tz]");
+    if (overCard !== touchLastOver) {
+      touchLastOver?.classList.remove("drag-over");
+      touchLastOver = (overCard && overCard !== touchDragCard) ? overCard : null;
+      touchLastOver?.classList.add("drag-over");
+    }
+  }
 
   card.addEventListener("touchstart", e => {
     if (e.target.closest(".remove-btn, .edit-tz-btn, .city-name, button, input, canvas")) return;
@@ -1601,51 +1617,27 @@ function addTouchDrag(card, zone) {
       lpActive = true;
       vibrate(60);
       startTouchDrag(card, zone, lpStartX, lpStartY);
+      // Add blocking listener NOW — after long-press confirmed
+      document.addEventListener("touchmove", dragMove, { passive: false });
     }, 500);
-  }, { passive: false });
+  }, { passive: true });
 
   card.addEventListener("touchmove", e => {
+    if (!lpTimer) return; // already fired or cancelled
     const touch = e.touches[0];
     const dx = touch.clientX - lpStartX;
     const dy = touch.clientY - lpStartY;
-
-    if (lpTimer && Math.sqrt(dx*dx + dy*dy) > 8) {
+    if (Math.sqrt(dx*dx + dy*dy) > 8) {
       clearTimeout(lpTimer);
       lpTimer = null;
     }
-
-    if (!lpActive) {
-      // touch-action:none blocks native scroll, so do it manually
-      window.scrollBy(0, lpStartY - touch.clientY);
-      lpStartX = touch.clientX;
-      lpStartY = touch.clientY;
-      return;
-    }
-    e.preventDefault();
-
-    if (!touchClone) return;
-    touchDidDrag = true;
-    touchClone.style.top  = (touch.clientY - touchOffsetY) + "px";
-    touchClone.style.left = (touch.clientX - touchOffsetX) + "px";
-
-    touchClone.style.visibility = "hidden";
-    card.style.visibility = "hidden";
-    const el = document.elementFromPoint(touch.clientX, touch.clientY);
-    card.style.visibility = "";
-    touchClone.style.visibility = "";
-
-    const overCard = el?.closest(".card[data-tz]");
-    if (overCard !== touchLastOver) {
-      touchLastOver?.classList.remove("drag-over");
-      touchLastOver = (overCard && overCard !== touchDragCard) ? overCard : null;
-      touchLastOver?.classList.add("drag-over");
-    }
-  }, { passive: false });
+  }, { passive: true });
 
   const endDrag = () => {
     clearTimeout(lpTimer);
     lpTimer = null;
     lpActive = false;
+    document.removeEventListener("touchmove", dragMove);
     if (!touchDragZone) return;
     touchClone?.remove(); touchClone = null;
     if (touchDragCard) {
