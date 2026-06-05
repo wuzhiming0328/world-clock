@@ -494,7 +494,10 @@
       -webkit-touch-callout: none;
     }
     .city-name, .city-name-input { -webkit-user-select: text; user-select: text; }
-    .card.touch-dragging { touch-action: none; }
+    .card.touch-dragging { touch-action: none; box-shadow: 0 16px 48px rgba(0,0,0,0.22) !important; transform: scale(1.03) !important; z-index: 50; }
+    /* Long-press hint pulse on mobile */
+    @keyframes lp-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(79,110,247,0.4); } 50% { box-shadow: 0 0 0 8px rgba(79,110,247,0); } }
+    .card.lp-ready { animation: lp-pulse 0.4s ease-out; }
 
     /* ── Empty state ── */
     .empty-state {
@@ -1559,7 +1562,7 @@ function makeCard(zone, isLocal, q) {
 }
 
 /* ─────────────────────────────────────────────
-   TOUCH DRAG
+   TOUCH DRAG  (long-press card → drag to reorder)
 ───────────────────────────────────────────── */
 let touchDragZone  = null;
 let touchDragCard  = null;
@@ -1568,40 +1571,71 @@ let touchLastOver  = null;
 let touchOffsetX   = 0;
 let touchOffsetY   = 0;
 let touchDidDrag   = false;
+let lpTimer        = null;   // long-press timer
+let lpStartX       = 0;
+let lpStartY       = 0;
 
 function addTouchDrag(card, zone) {
-  const handle = card.querySelector(".drag-handle");
-  if (!handle) return;
+  card.addEventListener("contextmenu", e => e.preventDefault());
 
-  handle.addEventListener("contextmenu", e => e.preventDefault());
-
-  handle.addEventListener("touchstart", e => {
-    e.preventDefault();
-    e.stopPropagation();
-    vibrate(40);
-    touchDragZone = zone;
-    touchDragCard = card;
-    touchDidDrag  = false;
-    card.classList.add("touch-dragging");
+  card.addEventListener("touchstart", e => {
+    // Don't start long-press if tapping interactive controls
+    if (e.target.closest(".remove-btn, .edit-tz-btn, .city-name, button, input, canvas")) return;
 
     const touch = e.touches[0];
-    const rect  = card.getBoundingClientRect();
-    touchOffsetX = touch.clientX - rect.left;
-    touchOffsetY = touch.clientY - rect.top;
+    lpStartX = touch.clientX;
+    lpStartY = touch.clientY;
+    // Snapshot coords now — TouchEvent objects are recycled and go stale
+    const startX = touch.clientX;
+    const startY = touch.clientY;
 
-    touchClone = card.cloneNode(true);
-    touchClone.style.cssText = `
-      position:fixed;top:${rect.top}px;left:${rect.left}px;
-      width:${rect.width}px;height:${rect.height}px;pointer-events:none;z-index:999;
-      opacity:0.85;transform:scale(1.03) rotate(1.5deg);
-      box-shadow:0 16px 48px rgba(0,0,0,0.22);border-radius:22px;transition:none;
-    `;
-    document.body.appendChild(touchClone);
-    card.style.opacity = "0.35";
-  }, { passive: false });
+    lpTimer = setTimeout(() => {
+      lpTimer = null;
+      vibrate(60);
+      startTouchDrag(card, zone, startX, startY);
+    }, 400);
+  }, { passive: true });
+
+  card.addEventListener("touchmove", e => {
+    if (lpTimer) {
+      // Cancel long-press if finger moved more than 8px (user is scrolling)
+      const dx = e.touches[0].clientX - lpStartX;
+      const dy = e.touches[0].clientY - lpStartY;
+      if (Math.sqrt(dx*dx + dy*dy) > 8) {
+        clearTimeout(lpTimer);
+        lpTimer = null;
+      }
+    }
+  }, { passive: true });
+
+  card.addEventListener("touchend",    () => { clearTimeout(lpTimer); lpTimer = null; });
+  card.addEventListener("touchcancel", () => { clearTimeout(lpTimer); lpTimer = null; });
 }
 
-// Global touch handlers — fire even after finger moves off the handle
+function startTouchDrag(card, zone, startX, startY) {
+  touchDragZone = zone;
+  touchDragCard = card;
+  touchDidDrag  = false;
+  card.classList.add("touch-dragging", "lp-ready");
+  setTimeout(() => card.classList.remove("lp-ready"), 400);
+
+  const rect   = card.getBoundingClientRect();
+  touchOffsetX = startX - rect.left;
+  touchOffsetY = startY - rect.top;
+
+  touchClone = card.cloneNode(true);
+  touchClone.style.cssText = `
+    position:fixed;top:${rect.top}px;left:${rect.left}px;
+    width:${rect.width}px;height:${rect.height}px;
+    pointer-events:none;z-index:999;
+    opacity:0.88;transform:scale(1.04) rotate(1.5deg);
+    box-shadow:0 16px 48px rgba(0,0,0,0.28);border-radius:22px;transition:none;
+  `;
+  document.body.appendChild(touchClone);
+  card.style.opacity = "0.3";
+}
+
+// Global move/end — must be on document to track finger anywhere on screen
 document.addEventListener("touchmove", e => {
   if (!touchDragZone || !touchClone) return;
   e.preventDefault();
@@ -1610,7 +1644,6 @@ document.addEventListener("touchmove", e => {
   touchClone.style.top  = (touch.clientY - touchOffsetY) + "px";
   touchClone.style.left = (touch.clientX - touchOffsetX) + "px";
 
-  // Temporarily hide clone so elementFromPoint hits the card underneath
   touchClone.style.visibility = "hidden";
   const el = document.elementFromPoint(touch.clientX, touch.clientY);
   touchClone.style.visibility = "";
