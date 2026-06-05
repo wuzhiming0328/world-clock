@@ -1479,6 +1479,7 @@ function makeCard(zone, isLocal, q) {
 
   // Card body click → expand
   card.querySelector(".card-body").addEventListener("click", e => {
+    if (touchDidDragRecently) { touchDidDragRecently = false; return; }
     if (e.target.closest(".remove-btn, .drag-handle, .city-name, .edit-tz-btn")) return;
     toggleExpand(card, zone);
   });
@@ -1562,7 +1563,8 @@ function makeCard(zone, isLocal, q) {
 }
 
 /* ─────────────────────────────────────────────
-   TOUCH DRAG  (long-press card → drag to reorder)
+   TOUCH DRAG  (long-press → pointer capture drag)
+   Uses Pointer Events API — works on iOS 13+
 ───────────────────────────────────────────── */
 let touchDragZone  = null;
 let touchDragCard  = null;
@@ -1571,45 +1573,81 @@ let touchLastOver  = null;
 let touchOffsetX   = 0;
 let touchOffsetY   = 0;
 let touchDidDrag   = false;
-let lpTimer        = null;   // long-press timer
+let touchDidDragRecently = false;
+let lpTimer        = null;
+let lpPointerId    = null;
 let lpStartX       = 0;
 let lpStartY       = 0;
 
 function addTouchDrag(card, zone) {
   card.addEventListener("contextmenu", e => e.preventDefault());
 
-  card.addEventListener("touchstart", e => {
-    // Don't start long-press if tapping interactive controls
+  card.addEventListener("pointerdown", e => {
+    if (e.pointerType === "mouse") return; // desktop uses HTML drag API
     if (e.target.closest(".remove-btn, .edit-tz-btn, .city-name, button, input, canvas")) return;
 
-    const touch = e.touches[0];
-    lpStartX = touch.clientX;
-    lpStartY = touch.clientY;
-    // Snapshot coords now — TouchEvent objects are recycled and go stale
-    const startX = touch.clientX;
-    const startY = touch.clientY;
+    lpPointerId = e.pointerId;
+    lpStartX    = e.clientX;
+    lpStartY    = e.clientY;
 
     lpTimer = setTimeout(() => {
       lpTimer = null;
       vibrate(60);
-      startTouchDrag(card, zone, startX, startY);
+      // Capture pointer so all future events come to this card
+      try { card.setPointerCapture(lpPointerId); } catch(err) {}
+      startTouchDrag(card, zone, lpStartX, lpStartY);
     }, 400);
-  }, { passive: true });
+  });
 
-  card.addEventListener("touchmove", e => {
+  card.addEventListener("pointermove", e => {
+    if (e.pointerId !== lpPointerId) return;
+
     if (lpTimer) {
-      // Cancel long-press if finger moved more than 8px (user is scrolling)
-      const dx = e.touches[0].clientX - lpStartX;
-      const dy = e.touches[0].clientY - lpStartY;
+      // Cancel long-press if finger moved more than 8px
+      const dx = e.clientX - lpStartX;
+      const dy = e.clientY - lpStartY;
       if (Math.sqrt(dx*dx + dy*dy) > 8) {
         clearTimeout(lpTimer);
         lpTimer = null;
+        lpPointerId = null;
       }
     }
-  }, { passive: true });
 
-  card.addEventListener("touchend",    () => { clearTimeout(lpTimer); lpTimer = null; });
-  card.addEventListener("touchcancel", () => { clearTimeout(lpTimer); lpTimer = null; });
+    if (!touchDragZone || !touchClone) return;
+    e.preventDefault();
+    touchDidDrag = true;
+    touchClone.style.top  = (e.clientY - touchOffsetY) + "px";
+    touchClone.style.left = (e.clientX - touchOffsetX) + "px";
+
+    touchClone.style.visibility = "hidden";
+    card.style.visibility = "hidden";
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    card.style.visibility = "";
+    touchClone.style.visibility = "";
+
+    const overCard = el?.closest(".card[data-tz]");
+    if (overCard !== touchLastOver) {
+      touchLastOver?.classList.remove("drag-over");
+      touchLastOver = (overCard && overCard !== touchDragCard) ? overCard : null;
+      touchLastOver?.classList.add("drag-over");
+    }
+  });
+
+  card.addEventListener("pointerup", e => {
+    if (e.pointerId !== lpPointerId) return;
+    clearTimeout(lpTimer);
+    lpTimer = null;
+    lpPointerId = null;
+    endTouchDrag();
+  });
+
+  card.addEventListener("pointercancel", e => {
+    if (e.pointerId !== lpPointerId) return;
+    clearTimeout(lpTimer);
+    lpTimer = null;
+    lpPointerId = null;
+    endTouchDrag();
+  });
 }
 
 function startTouchDrag(card, zone, startX, startY) {
@@ -1635,27 +1673,6 @@ function startTouchDrag(card, zone, startX, startY) {
   card.style.opacity = "0.3";
 }
 
-// Global move/end — must be on document to track finger anywhere on screen
-document.addEventListener("touchmove", e => {
-  if (!touchDragZone || !touchClone) return;
-  e.preventDefault();
-  touchDidDrag = true;
-  const touch = e.touches[0];
-  touchClone.style.top  = (touch.clientY - touchOffsetY) + "px";
-  touchClone.style.left = (touch.clientX - touchOffsetX) + "px";
-
-  touchClone.style.visibility = "hidden";
-  const el = document.elementFromPoint(touch.clientX, touch.clientY);
-  touchClone.style.visibility = "";
-
-  const overCard = el?.closest(".card[data-tz]");
-  if (overCard !== touchLastOver) {
-    touchLastOver?.classList.remove("drag-over");
-    touchLastOver = (overCard && overCard !== touchDragCard) ? overCard : null;
-    touchLastOver?.classList.add("drag-over");
-  }
-}, { passive: false });
-
 function endTouchDrag() {
   if (!touchDragZone) return;
   touchClone?.remove(); touchClone = null;
@@ -1665,6 +1682,7 @@ function endTouchDrag() {
   }
   touchLastOver?.classList.remove("drag-over");
   if (touchDidDrag && touchLastOver) {
+    touchDidDragRecently = true;
     const si = zones.findIndex(z => z.tz === touchDragZone.tz && z.city === touchDragZone.city);
     const di = zones.findIndex(z => z.tz === touchLastOver.dataset.tz && z.city === touchLastOver.dataset.city);
     if (si !== -1 && di !== -1 && si !== di) {
@@ -1677,8 +1695,6 @@ function endTouchDrag() {
   touchDragZone = touchDragCard = touchLastOver = null;
   touchDidDrag  = false;
 }
-document.addEventListener("touchend",    endTouchDrag);
-document.addEventListener("touchcancel", endTouchDrag);
 
 function makeAddBtn() {
   const btn = document.createElement("div");
