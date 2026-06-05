@@ -487,6 +487,7 @@
 
     /* ── Touch drag ── */
     .drag-handle { touch-action: none; }
+    .card.touch-dragging { touch-action: none; }
 
     /* ── Empty state ── */
     .empty-state {
@@ -1512,8 +1513,9 @@ function makeCard(zone, isLocal, q) {
     }
   });
 
-  // Drag
-  card.draggable = true;
+  // Drag (desktop only — draggable=true breaks touch events on iOS)
+  const isTouchDevice = window.matchMedia("(hover: none)").matches;
+  if (!isTouchDevice) card.draggable = true;
   card.addEventListener("dragstart", e => {
     dragSrc = card;
     vibrate(40);
@@ -1568,6 +1570,7 @@ function addTouchDrag(card, zone) {
     vibrate(40);
     touchDragZone = zone;
     touchDragCard = card;
+    card.classList.add("touch-dragging");
 
     const touch = e.touches[0];
     const rect  = card.getBoundingClientRect();
@@ -1611,7 +1614,10 @@ document.addEventListener("touchmove", e => {
 function endTouchDrag() {
   if (!touchDragZone) return;
   touchClone?.remove(); touchClone = null;
-  if (touchDragCard) touchDragCard.style.opacity = "";
+  if (touchDragCard) {
+    touchDragCard.style.opacity = "";
+    touchDragCard.classList.remove("touch-dragging");
+  }
   touchLastOver?.classList.remove("drag-over");
   if (touchLastOver) {
     const si = zones.findIndex(z => z.tz === touchDragZone.tz && z.city === touchDragZone.city);
