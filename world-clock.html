@@ -1552,10 +1552,12 @@ function makeCard(zone, isLocal, q) {
 /* ─────────────────────────────────────────────
    TOUCH DRAG
 ───────────────────────────────────────────── */
-let touchDragZone = null;
-let touchDragCard = null;
-let touchClone    = null;
-let touchLastOver = null;
+let touchDragZone  = null;
+let touchDragCard  = null;
+let touchClone     = null;
+let touchLastOver  = null;
+let touchOffsetX   = 0;
+let touchOffsetY   = 0;
 
 function addTouchDrag(card, zone) {
   const handle = card.querySelector(".drag-handle");
@@ -1566,7 +1568,13 @@ function addTouchDrag(card, zone) {
     vibrate(40);
     touchDragZone = zone;
     touchDragCard = card;
-    const rect = card.getBoundingClientRect();
+
+    const touch = e.touches[0];
+    const rect  = card.getBoundingClientRect();
+    // Remember where within the card the finger landed
+    touchOffsetX = touch.clientX - rect.left;
+    touchOffsetY = touch.clientY - rect.top;
+
     touchClone = card.cloneNode(true);
     touchClone.style.cssText = `
       position:fixed;top:${rect.top}px;left:${rect.left}px;
@@ -1577,45 +1585,48 @@ function addTouchDrag(card, zone) {
     document.body.appendChild(touchClone);
     card.style.opacity = "0.35";
   }, { passive: false });
-
-  handle.addEventListener("touchmove", e => {
-    if (!touchDragZone) return;
-    e.preventDefault();
-    const touch = e.touches[0];
-    const rect  = touchDragCard.getBoundingClientRect();
-    touchClone.style.top  = (touch.clientY - rect.height / 2) + "px";
-    touchClone.style.left = (touch.clientX - rect.width  / 2) + "px";
-    touchClone.style.display = "none";
-    const el = document.elementFromPoint(touch.clientX, touch.clientY);
-    touchClone.style.display = "";
-    const overCard = el?.closest(".card[data-tz]");
-    if (overCard !== touchLastOver) {
-      touchLastOver?.classList.remove("drag-over");
-      touchLastOver = (overCard && overCard !== touchDragCard) ? overCard : null;
-      touchLastOver?.classList.add("drag-over");
-    }
-  }, { passive: false });
-
-  const endDrag = () => {
-    if (!touchDragZone) return;
-    touchClone?.remove(); touchClone = null;
-    if (touchDragCard) touchDragCard.style.opacity = "";
-    touchLastOver?.classList.remove("drag-over");
-    if (touchLastOver) {
-      const si = zones.findIndex(z => z.tz === touchDragZone.tz && z.city === touchDragZone.city);
-      const di = zones.findIndex(z => z.tz === touchLastOver.dataset.tz && z.city === touchLastOver.dataset.city);
-      if (si !== -1 && di !== -1 && si !== di) {
-        const [moved] = zones.splice(si, 1);
-        zones.splice(di, 0, moved);
-        vibrate([30, 20, 30]);
-        saveZones(); render();
-      }
-    }
-    touchDragZone = touchDragCard = touchLastOver = null;
-  };
-  handle.addEventListener("touchend",    endDrag);
-  handle.addEventListener("touchcancel", endDrag);
 }
+
+// Global touch handlers — fire even after finger moves off the handle
+document.addEventListener("touchmove", e => {
+  if (!touchDragZone) return;
+  e.preventDefault();
+  const touch = e.touches[0];
+  touchClone.style.top  = (touch.clientY - touchOffsetY) + "px";
+  touchClone.style.left = (touch.clientX - touchOffsetX) + "px";
+
+  // Temporarily hide clone so elementFromPoint can hit the card underneath
+  touchClone.style.display = "none";
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  touchClone.style.display = "";
+
+  const overCard = el?.closest(".card[data-tz]");
+  if (overCard !== touchLastOver) {
+    touchLastOver?.classList.remove("drag-over");
+    touchLastOver = (overCard && overCard !== touchDragCard) ? overCard : null;
+    touchLastOver?.classList.add("drag-over");
+  }
+}, { passive: false });
+
+function endTouchDrag() {
+  if (!touchDragZone) return;
+  touchClone?.remove(); touchClone = null;
+  if (touchDragCard) touchDragCard.style.opacity = "";
+  touchLastOver?.classList.remove("drag-over");
+  if (touchLastOver) {
+    const si = zones.findIndex(z => z.tz === touchDragZone.tz && z.city === touchDragZone.city);
+    const di = zones.findIndex(z => z.tz === touchLastOver.dataset.tz && z.city === touchLastOver.dataset.city);
+    if (si !== -1 && di !== -1 && si !== di) {
+      const [moved] = zones.splice(si, 1);
+      zones.splice(di, 0, moved);
+      vibrate([30, 20, 30]);
+      saveZones(); render();
+    }
+  }
+  touchDragZone = touchDragCard = touchLastOver = null;
+}
+document.addEventListener("touchend",    endTouchDrag);
+document.addEventListener("touchcancel", endTouchDrag);
 
 function makeAddBtn() {
   const btn = document.createElement("div");
