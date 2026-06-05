@@ -6,7 +6,7 @@
   <title>World Clock</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="/world-clock/manifest.json" />
+  <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#3b82f6" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0e1021" media="(prefers-color-scheme: dark)" />
 
@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="World Clock" />
-  <link rel="apple-touch-icon" href="/world-clock/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
@@ -135,15 +135,16 @@
       display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
     }
     .mp-work-hours {
-      display: inline-flex; align-items: center; gap: 2px;
-      font-size: 0.67rem; color: #9aa0b8; flex-shrink: 0;
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 0.75rem; color: #9aa0b8; flex-shrink: 0;
     }
     .mp-hour-input {
-      width: 30px; font-size: 0.67rem; font-family: inherit; color: #555;
-      border: 1px solid #e2e5f0; border-radius: 4px; padding: 1px 3px;
-      text-align: center; background: #f8f9ff;
+      width: 38px; font-size: 0.78rem; font-family: inherit; color: #333;
+      border: 1.5px solid #e2e5f0; border-radius: 6px; padding: 3px 4px;
+      text-align: center; background: #f8f9ff; font-weight: 600;
     }
-    .mp-hour-input::-webkit-inner-spin-button { opacity: 0.5; }
+    .mp-hour-input:focus { outline: none; border-color: #3b82f6; }
+    .mp-hour-input::-webkit-inner-spin-button { opacity: 0.7; }
     .mp-overlap-city-name { font-size: 0.78rem; font-weight: 600; color: #555; width: 80px; flex-shrink: 0; }
     .overlap-bar {
       display: flex; height: 18px; border-radius: 5px; overflow: hidden; flex: 1;
@@ -163,6 +164,11 @@
       display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
       gap: 20px; width: 100%; max-width: 1120px;
     }
+    /* Clock size token — read by JS */
+    :root { --clock-size: 120px; }
+    @media (min-width: 540px)  { :root { --clock-size: 130px; } }
+    @media (min-width: 900px)  { :root { --clock-size: 150px; } }
+    @media (min-width: 1200px) { :root { --clock-size: 160px; } }
 
     /* ── Card ── */
     .card {
@@ -213,6 +219,10 @@
     .card.night .drag-handle { color: #4a5080; }
     .drag-handle:hover { background: rgba(0,0,0,0.06); }
     .card.night .drag-handle:hover { background: rgba(255,255,255,0.07); }
+    @media (hover: none) {
+      .drag-handle { opacity: 0.45; width: 36px; height: 36px; bottom: 8px; right: 8px; }
+      .card.night .drag-handle { opacity: 0.35; }
+    }
 
     .card.dragging { opacity: .5; transform: scale(1.04) rotate(1.5deg) !important; z-index: 50; }
     .card.drag-over { border-color: #4f6ef7 !important; box-shadow: 0 0 0 3px rgba(79,110,247,0.15) !important; }
@@ -228,6 +238,10 @@
     .remove-btn:hover { color: #ef4444; background: rgba(239,68,68,.09); }
     .card.night .remove-btn { color: #3a4070; }
     .card.night .remove-btn:hover { color: #f87171; background: rgba(248,113,113,.1); }
+    @media (hover: none) {
+      .remove-btn { opacity: 0.45; }
+      .card.night .remove-btn { opacity: 0.35; }
+    }
 
     /* Card body */
     .card-body {
@@ -265,6 +279,9 @@
     .card:hover .edit-tz-btn { opacity: 1; }
     .edit-tz-btn:hover { background: rgba(0,0,0,0.06); }
     .card.night .edit-tz-btn { color: #5060a0; }
+    @media (hover: none) {
+      .edit-tz-btn { opacity: 0.45; }
+    }
 
     .time-digits {
       font-size: 2.2rem; font-weight: 800; letter-spacing: -1.5px;
@@ -292,6 +309,13 @@
       background: rgba(0,0,0,0.04); border-radius: 99px; padding: 2px 8px;
     }
     .card.night .diff-pill { background: rgba(255,255,255,0.06); color: #5860a0; }
+
+    .tz-abbr {
+      display: inline-block; margin-top: 2px; margin-left: 4px;
+      font-size: 0.7rem; font-weight: 600; color: #aab0cc;
+      background: rgba(0,0,0,0.03); border-radius: 99px; padding: 2px 7px;
+    }
+    .card.night .tz-abbr { background: rgba(255,255,255,0.05); color: #4a5090; }
 
     .weather-chip {
       display: inline-flex; align-items: center; gap: 3px; margin-top: 4px;
@@ -344,6 +368,15 @@
       font-size: 0.7rem; font-weight: 600; color: #d97706; margin-top: 5px;
     }
     .card.night .dst-warn { color: #fbbf24; }
+
+    .holiday-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 0.7rem; font-weight: 600; color: #7c3aed;
+      background: rgba(124,58,237,0.09); border-radius: 99px;
+      padding: 2px 8px; margin-top: 5px;
+    }
+    .card.night .holiday-badge { color: #a78bfa; background: rgba(167,139,250,0.12); }
+    body.dark .card.day .holiday-badge { color: #a78bfa; background: rgba(167,139,250,0.12); }
 
     /* ── City name inline edit ── */
     .city-name-input {
@@ -466,13 +499,86 @@
     .mp-city-offset { font-size: 0.72rem; color: #9aa0b8; margin-left: 6px; flex-shrink: 0; }
     .overlap-best    { background: rgba(34,197,94,0.38) !important; }
     .overlap-partial { background: rgba(251,191,36,0.35) !important; }
+    .overlap-seg { cursor: pointer; }
+    .overlap-seg:hover { filter: brightness(1.25); }
+    .overlap-seg.overlap-selected-seg {
+      outline: 2px solid #3b82f6; outline-offset: -2px;
+      animation: seg-pulse 1.4s ease-in-out infinite;
+    }
+    body.dark .overlap-seg.overlap-selected-seg { outline-color: #818cf8; }
+    @keyframes seg-pulse {
+      0%, 100% { outline-color: rgba(59,130,246,0.9); }
+      50%       { outline-color: rgba(59,130,246,0.3); }
+    }
+    body.dark .overlap-seg.overlap-selected-seg { animation: seg-pulse-dark 1.4s ease-in-out infinite; }
+    @keyframes seg-pulse-dark {
+      0%, 100% { outline-color: rgba(129,140,248,0.9); }
+      50%       { outline-color: rgba(129,140,248,0.3); }
+    }
+    .overlap-midnight {
+      position: absolute; top: 0; bottom: 0; width: 1px;
+      background: repeating-linear-gradient(to bottom, #9aa0b8 0px, #9aa0b8 3px, transparent 3px, transparent 6px);
+      pointer-events: none; transform: translateX(-50%); opacity: 0.55;
+    }
+    body.dark .overlap-midnight { background: repeating-linear-gradient(to bottom, #4a5080 0px, #4a5080 3px, transparent 3px, transparent 6px); opacity: 0.7; }
+    /* Tap popup */
+    .mp-seg-popup {
+      position: fixed; z-index: 500;
+      background: #1a1a2e; color: #fff; font-size: 0.75rem; font-weight: 600;
+      padding: 5px 10px; border-radius: 8px; pointer-events: none; white-space: nowrap;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+      opacity: 0; transition: opacity 0.12s;
+    }
+    .mp-seg-popup.visible { opacity: 1; }
+    body.dark .mp-seg-popup { background: #c8ccf0; color: #1a1a2e; }
     .mp-overlap-summary {
       font-size: 0.8rem; font-weight: 600; margin-top: 12px;
-      padding: 8px 12px; border-radius: 10px; display: inline-block;
+      padding: 8px 12px; border-radius: 10px; display: block;
     }
     .mp-overlap-summary.good { background: rgba(34,197,94,0.12); color: #16a34a; }
     .mp-overlap-summary.warn { background: rgba(251,191,36,0.15); color: #b45309; }
     .mp-overlap-summary.none { background: rgba(239,68,68,0.10);  color: #dc2626; }
+
+    .mp-window-table {
+      margin-top: 10px; width: 100%; border-collapse: collapse;
+    }
+    .mp-window-table td {
+      padding: 4px 8px; font-size: 0.8rem; border-bottom: 1px solid #f0f2f8;
+    }
+    .mp-window-table td:first-child { font-weight: 600; color: #1a1a2e; width: 36%; }
+    .mp-window-table td:nth-child(2) { color: #3b82f6; font-weight: 700; }
+    .mp-window-table td:last-child   { color: #9aa0b8; font-size: 0.72rem; text-align: right; }
+    .mp-window-table tr:last-child td { border-bottom: none; }
+    .mp-day-badge {
+      display: inline-block; font-size: 0.6rem; font-weight: 700;
+      padding: 1px 4px; border-radius: 4px; margin-left: 4px; vertical-align: middle;
+    }
+    .mp-day-badge.plus  { background: rgba(59,130,246,0.12); color: #2563eb; }
+    .mp-day-badge.minus { background: rgba(239,68,68,0.10);  color: #dc2626; }
+
+    .overlap-bar { position: relative; }
+    .overlap-selected-line {
+      position: absolute; top: 0; bottom: 0; width: 2px;
+      background: #1a1a2e; pointer-events: none; transform: translateX(-50%);
+      border-radius: 2px; opacity: 0.5;
+    }
+    body.dark .overlap-selected-line { background: #e8eaff; }
+
+    .mp-copy-btn {
+      margin-top: 10px; padding: 6px 14px; border-radius: 9px; font-size: 0.78rem;
+      font-weight: 600; cursor: pointer; border: 1.5px solid #e2e5f0;
+      background: #fff; color: #555; font-family: inherit;
+      transition: border-color .15s, color .15s, background .15s;
+    }
+    .mp-copy-btn:hover { border-color: #3b82f6; color: #3b82f6; background: #f0f5ff; }
+
+    body.dark .mp-window-table td:first-child { color: #c8ccf0; }
+    body.dark .mp-window-table td:last-child  { color: #4a5080; }
+    body.dark .mp-day-badge.plus  { background: rgba(99,102,241,0.2); color: #818cf8; }
+    body.dark .mp-day-badge.minus { background: rgba(248,113,113,0.15); color: #f87171; }
+    body.dark .mp-window-table td { border-bottom-color: #1e2340; }
+    body.dark .mp-copy-btn { background: #1e2340; border-color: #252c50; color: #7880b0; }
+    body.dark .mp-copy-btn:hover { border-color: #4f46e5; color: #818cf8; background: #1a1e3a; }
 
     /* ── Dark mode ── */
     body.dark {
@@ -497,7 +603,7 @@
     body.dark .mp-inner { background: #161928; box-shadow: 0 4px 24px rgba(0,0,0,0.5); }
     body.dark .mp-head h3 { color: #c8ccf0; }
     body.dark .mp-inputs input { background: #0e1021; border-color: #252c50; color: #c8ccf0; }
-    body.dark .mp-hour-input { background: #0e1021; border-color: #252c50; color: #c8ccf0; }
+    body.dark .mp-hour-input { background: #0e1021; border-color: #252c50; color: #c8ccf0; font-weight: 600; }
     body.dark .mp-results-section h4, body.dark .mp-overlap-section h4 { color: #3a4070; }
     body.dark .mp-city-name, body.dark .mp-city-time { color: #c8ccf0; }
     body.dark .mp-city-row { border-bottom-color: #1e2340; }
@@ -674,6 +780,7 @@ let meetingPlannerOpen = false;
 let tzEditTarget     = null;
 const weatherCache   = {};
 const WEATHER_TTL    = 15 * 60 * 1000;
+const vibrate        = (ms) => navigator.vibrate?.(ms);
 
 const localTz = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 const cardKey = z => z.tz + "|" + z.city;
@@ -718,7 +825,7 @@ function dayPercent(parts) {
   return ((parts.hour * 3600 + parts.minute * 60 + parts.second) / 86400) * 100;
 }
 
-function tzOffsetMinutes(tz, now) {
+function tzOffsetMs(tz, now) {
   const fmt = new Intl.DateTimeFormat("en-US", {
     timeZone: tz, hour: "numeric", minute: "numeric", hour12: false,
     year: "numeric", month: "numeric", day: "numeric"
@@ -731,13 +838,29 @@ function tzOffsetMinutes(tz, now) {
 
 function diffLabel(tz) {
   const n      = new Date();
-  const diffMs = tzOffsetMinutes(tz, n) - tzOffsetMinutes(localTz(), n);
+  const diffMs = tzOffsetMs(tz, n) - tzOffsetMs(localTz(), n);
   const diffM  = Math.round(diffMs / 60000);
   if (diffM === 0) return "Local time";
   const sign = diffM > 0 ? "+" : "−";
   const abs  = Math.abs(diffM);
   const h = Math.floor(abs / 60), m = abs % 60;
   return m ? `${sign}${h}h ${m}m` : `${sign}${h}h`;
+}
+
+function tzAbbr(tz, now) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "short" }).formatToParts(now);
+    return parts.find(p => p.type === "timeZoneName")?.value ?? "";
+  } catch { return ""; }
+}
+
+function tzOffsetStr(tz, now) {
+  const totalMin = Math.round(tzOffsetMs(tz, now) / 60000);
+  const sign = totalMin >= 0 ? "+" : "−";
+  const abs  = Math.abs(totalMin);
+  const h    = Math.floor(abs / 60);
+  const m    = abs % 60;
+  return "UTC" + sign + (m ? `${h}:${String(m).padStart(2, "0")}` : `${h}`);
 }
 
 /* ─────────────────────────────────────────────
@@ -792,9 +915,94 @@ function getDstWarning(tz) {
   return null;
 }
 
+/* ─────────────────────────────────────────────
+   PUBLIC HOLIDAYS
+───────────────────────────────────────────── */
+const TZ_COUNTRY = {
+  "America/New_York":"US","America/Chicago":"US","America/Denver":"US",
+  "America/Los_Angeles":"US","America/Phoenix":"US","America/Anchorage":"US",
+  "America/Toronto":"CA","America/Vancouver":"CA","America/Winnipeg":"CA",
+  "America/Halifax":"CA","America/St_Johns":"CA",
+  "America/Mexico_City":"MX",
+  "America/Sao_Paulo":"BR","America/Bogota":"CO","America/Santiago":"CL",
+  "America/Argentina/Buenos_Aires":"AR",
+  "Europe/London":"GB","Europe/Dublin":"IE",
+  "Europe/Paris":"FR","Europe/Berlin":"DE","Europe/Madrid":"ES",
+  "Europe/Rome":"IT","Europe/Amsterdam":"NL","Europe/Brussels":"BE",
+  "Europe/Zurich":"CH","Europe/Vienna":"AT","Europe/Warsaw":"PL",
+  "Europe/Prague":"CZ","Europe/Stockholm":"SE","Europe/Oslo":"NO",
+  "Europe/Copenhagen":"DK","Europe/Helsinki":"FI","Europe/Athens":"GR",
+  "Europe/Lisbon":"PT","Europe/Budapest":"HU","Europe/Bucharest":"RO",
+  "Europe/Belgrade":"RS","Europe/Sofia":"BG","Europe/Kiev":"UA",
+  "Europe/Moscow":"RU","Europe/Istanbul":"TR",
+  "Asia/Tokyo":"JP","Asia/Seoul":"KR","Asia/Shanghai":"CN",
+  "Asia/Hong_Kong":"HK","Asia/Singapore":"SG","Asia/Taipei":"TW",
+  "Asia/Kolkata":"IN","Asia/Karachi":"PK","Asia/Dhaka":"BD",
+  "Asia/Bangkok":"TH","Asia/Jakarta":"ID","Asia/Manila":"PH",
+  "Asia/Kuala_Lumpur":"MY","Asia/Ho_Chi_Minh":"VN",
+  "Asia/Dubai":"AE","Asia/Riyadh":"SA","Asia/Kuwait":"KW",
+  "Asia/Baghdad":"IQ","Asia/Tehran":"IR","Asia/Jerusalem":"IL",
+  "Asia/Nicosia":"CY","Asia/Tbilisi":"GE","Asia/Yerevan":"AM",
+  "Asia/Baku":"AZ","Asia/Tashkent":"UZ","Asia/Almaty":"KZ",
+  "Africa/Cairo":"EG","Africa/Lagos":"NG","Africa/Nairobi":"KE",
+  "Africa/Johannesburg":"ZA","Africa/Casablanca":"MA",
+  "Africa/Accra":"GH","Africa/Algiers":"DZ","Africa/Tunis":"TN",
+  "Australia/Sydney":"AU","Australia/Melbourne":"AU","Australia/Brisbane":"AU",
+  "Australia/Perth":"AU","Australia/Adelaide":"AU","Australia/Darwin":"AU",
+  "Pacific/Auckland":"NZ","Pacific/Honolulu":"US",
+};
 
-const CLOCK_SIZE = 140;
+const holidayCache = {}; // key: "CC-YYYY" → { data: [...], fetchedAt }
+const HOLIDAY_TTL  = 24 * 60 * 60 * 1000; // 1 day
+
+async function fetchHolidays(countryCode, year) {
+  const key = `${countryCode}-${year}`;
+  const cached = holidayCache[key];
+  if (cached && (Date.now() - cached.fetchedAt) < HOLIDAY_TTL) return cached.data;
+  if (cached && cached.fetching) return null;
+  holidayCache[key] = { ...(cached || {}), fetching: true };
+  try {
+    const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/${countryCode}`);
+    if (!res.ok) { delete holidayCache[key]; return null; }
+    const data = await res.json();
+    holidayCache[key] = { data, fetchedAt: Date.now() };
+    return data;
+  } catch { delete holidayCache[key]; return null; }
+}
+
+function getNextHoliday(holidays, tz) {
+  if (!holidays?.length) return null;
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: tz }); // YYYY-MM-DD
+  const upcoming = holidays
+    .filter(h => h.date >= todayStr)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  return upcoming[0] ?? null;
+}
+
+async function loadHolidayForCard(card, zone) {
+  const cc = TZ_COUNTRY[zone.tz];
+  if (!cc) return;
+  const year = new Date().getFullYear();
+  const holidays = await fetchHolidays(cc, year);
+  // Also fetch next year if we're in the last month
+  let allHolidays = holidays || [];
+  if (new Date().getMonth() >= 11) {
+    const nextYear = await fetchHolidays(cc, year + 1);
+    if (nextYear) allHolidays = allHolidays.concat(nextYear);
+  }
+  const next = getNextHoliday(allHolidays, zone.tz);
+  const el   = card.querySelector(".holiday-badge");
+  if (!el) return;
+  if (!next) { el.style.display = "none"; return; }
+  const today  = new Date().toLocaleDateString("en-CA", { timeZone: zone.tz });
+  const diff   = Math.round((new Date(next.date) - new Date(today)) / 86400000);
+  const dayStr = diff === 0 ? "Today" : diff === 1 ? "Tomorrow" : `in ${diff} days`;
+  el.textContent = `🎉 ${next.localName} — ${dayStr}`;
+  el.style.display = "";
+}
+
 const DPR = Math.min(window.devicePixelRatio || 1, 2);
+const getClockSize = () => parseInt(getComputedStyle(document.documentElement).getPropertyValue("--clock-size")) || 140;
 
 const THEME = {
   day:   { face:"#f4f7ff", rim:"#dce8ff", rimW:1.5,
@@ -810,6 +1018,7 @@ const THEME = {
 };
 
 function drawClock(canvas, parts, p) {
+  const CLOCK_SIZE = getClockSize();
   const t = THEME[p];
   const S = CLOCK_SIZE * DPR;
   canvas.width  = S; canvas.height = S;
@@ -1071,6 +1280,9 @@ function buildTimeline(card, zone) {
     dstEl.textContent = warn ? "⚠️ " + warn : "";
     dstEl.style.display = warn ? "" : "none";
   }
+
+  // Next public holiday
+  loadHolidayForCard(card, zone);
 }
 
 /* ─────────────────────────────────────────────
@@ -1176,6 +1388,7 @@ function makeCard(zone, isLocal, q) {
   const {hm, ss, ampm} = formatHM(now, zone.tz);
   const pct   = dayPercent(parts);
   const dl    = diffLabel(zone.tz);
+  const abbr  = tzAbbr(zone.tz, now);
   const dt    = dateStr(now, zone.tz);
   const key   = cardKey(zone);
 
@@ -1188,6 +1401,8 @@ function makeCard(zone, isLocal, q) {
   const youBadge   = isLocal ? `<span class="you-badge">YOU</span>` : "";
   const landmarkSvg = LANDMARKS[zone.city] || "";
   const ampmDisplay = use24h ? "none" : "";
+
+  const abbrHtml = abbr ? '<span class="tz-abbr">' + esc(abbr) + '</span>' : "";
 
   card.innerHTML = `
     <div class="accent-bar"></div>
@@ -1212,7 +1427,7 @@ function makeCard(zone, isLocal, q) {
         <div class="bar-wrap">
           <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
         </div>
-        <div class="diff-pill">${dl}</div>
+        <div class="diff-pill">${dl}</div>${abbrHtml}
         <div class="weather-chip">${zone.lat != null ? "…" : ""}</div>
       </div>
     </div>
@@ -1223,6 +1438,7 @@ function makeCard(zone, isLocal, q) {
         <div class="timeline-track"></div>
         <div class="tz-full-label">${zone.tz.replace(/_/g," ")}</div>
         <div class="dst-warn"></div>
+        <div class="holiday-badge" style="display:none"></div>
       </div>
     </div>
     <div class="drag-handle" title="Drag to reorder" aria-hidden="true">
@@ -1295,8 +1511,6 @@ function makeCard(zone, isLocal, q) {
       saveZones(); render();
     }
   });
-
-const vibrate = (ms) => navigator.vibrate?.(ms);
 
   // Drag
   card.draggable = true;
@@ -1494,7 +1708,7 @@ function openMeetingPlanner() {
   const hh  = String(now.getHours()).padStart(2, "0");
   const mm  = String(now.getMinutes()).padStart(2, "0");
   document.getElementById("mp-time").value = `${hh}:${mm}`;
-  document.getElementById("mp-date").value = now.toISOString().slice(0, 10);
+  document.getElementById("mp-date").value = now.toLocaleDateString("en-CA");
   renderMeetingPlanner();
 }
 
@@ -1513,13 +1727,16 @@ function renderMeetingPlanner() {
   const [h, m]     = timeVal.split(":").map(Number);
   const refDate    = new Date(y, mo - 1, d, h, m, 0);
 
+  // Sort zones by UTC offset west→east for the planner view only
+  const sortedZones = [...zones].sort((a, b) => tzOffsetMs(a.tz, refDate) - tzOffsetMs(b.tz, refDate));
+
   const resultsEl = document.getElementById("mp-results");
   const overlapEl = document.getElementById("mp-overlap");
   resultsEl.innerHTML = "";
   overlapEl.innerHTML = "";
 
   // Times across cities + offset
-  zones.forEach(z => {
+  sortedZones.forEach(z => {
     const localStr = refDate.toLocaleTimeString("en-US", {
       timeZone: z.tz, hour:"2-digit", minute:"2-digit", hour12: !use24h
     });
@@ -1538,37 +1755,43 @@ function renderMeetingPlanner() {
     resultsEl.appendChild(row);
   });
 
-  // Hour labels for overlap
+  // Hour labels for overlap — segs are UTC hours 0-23
   const labelsEl = document.getElementById("mp-hour-labels");
   labelsEl.innerHTML = "";
   [0,6,12,18,24].forEach(hr => {
     const s = document.createElement("span");
-    s.textContent = hr === 0 || hr === 24 ? "12am" : hr < 12 ? hr+"am" : hr === 12 ? "12pm" : (hr-12)+"pm";
+    s.textContent = hr === 0 || hr === 24 ? "UTC 0" : `UTC ${hr}`;
     labelsEl.appendChild(s);
   });
 
   // Build seg data + compute best-overlap
-  const baseHours = zones.map(z => getTimeParts(refDate, z.tz).hour);
-  // segWorking[seg] = number of zones where that slot is working hours (per-city custom hours)
+  // Segs represent UTC hours 0-23 relative to refDate's UTC midnight.
+  // For each city and each UTC hour offset, compute the local wall-clock hour.
+  const refUtcMidnight = new Date(Date.UTC(
+    refDate.getUTCFullYear(), refDate.getUTCMonth(), refDate.getUTCDate()
+  ));
   const segWorking = new Array(24).fill(0);
-  zones.forEach((z, zi) => {
+  sortedZones.forEach(z => {
     const ws = z.workStart ?? 9, we = z.workEnd ?? 17;
-    const base = baseHours[zi];
     for (let seg = 0; seg < 24; seg++) {
-      const zHour = (base + seg) % 24;
-      if (zHour >= ws && zHour < we) segWorking[seg]++;
+      const segDate = new Date(refUtcMidnight.getTime() + seg * 3600000);
+      const localHour = getTimeParts(segDate, z.tz).hour;
+      if (localHour >= ws && localHour < we) segWorking[seg]++;
     }
   });
   const maxOverlap = Math.max(...segWorking);
-  const bestSegs   = new Set(segWorking.map((v,i) => v === zones.length ? i : -1).filter(i => i >= 0));
-  const partialSegs = maxOverlap < zones.length
+  const bestSegs   = new Set(segWorking.map((v,i) => v === sortedZones.length ? i : -1).filter(i => i >= 0));
+  const partialSegs = maxOverlap < sortedZones.length
     ? new Set(segWorking.map((v,i) => v === maxOverlap ? i : -1).filter(i => i >= 0))
     : new Set();
 
+  // Selected seg index: UTC hour offset from refDate's UTC midnight
+  const selectedSeg = refDate.getUTCHours();
+
   // Overlap bars
-  const allSegDivs = []; // [zoneIdx][segIdx]
-  zones.forEach((z, zi) => {
-    const baseHour = baseHours[zi];
+  const allSegDivs = [];
+  const allBars    = [];
+  sortedZones.forEach((z, zi) => {
     const ws = z.workStart ?? 9, we = z.workEnd ?? 17;
     const row      = document.createElement("div");
     row.className  = "mp-overlap-row";
@@ -1600,13 +1823,68 @@ function renderMeetingPlanner() {
     const segDivs = [];
 
     for (let seg = 0; seg < 24; seg++) {
-      const zHour = (baseHour + seg) % 24;
+      const segDate   = new Date(refUtcMidnight.getTime() + seg * 3600000);
+      const localHour = getTimeParts(segDate, z.tz).hour;
       const segEl = document.createElement("div");
-      const isWork = zHour >= ws && zHour < we;
-      segEl.className = "overlap-seg " + (seg === 0 ? "overlap-now" : isWork ? "overlap-work" : "overlap-off");
+      const isWork = localHour >= ws && localHour < we;
+      segEl.className = "overlap-seg " + (seg === selectedSeg ? "overlap-now" : isWork ? "overlap-work" : "overlap-off");
+      const segTimeStr = segDate.toLocaleTimeString("en-US", {
+        timeZone: z.tz, hour: "2-digit", minute: "2-digit", hour12: !use24h
+      });
+      segEl.title = `${z.city}: ${segTimeStr}`;
+
+      // Tap popup (works on both mobile touch and mouse)
+      const popup = document.getElementById("mp-seg-popup");
+      const showPopup = (clientX, clientY) => {
+        popup.textContent = `${z.city}: ${segTimeStr}`;
+        popup.style.left = (clientX + 10) + "px";
+        popup.style.top  = (clientY - 32) + "px";
+        popup.classList.add("visible");
+      };
+      const hidePopup = () => popup.classList.remove("visible");
+      segEl.addEventListener("mouseenter", e => showPopup(e.clientX, e.clientY));
+      segEl.addEventListener("mousemove",  e => { popup.style.left = (e.clientX + 10) + "px"; popup.style.top = (e.clientY - 32) + "px"; });
+      segEl.addEventListener("mouseleave", hidePopup);
+      segEl.addEventListener("touchstart", e => {
+        const t = e.touches[0];
+        showPopup(t.clientX, t.clientY);
+      }, { passive: true });
+      segEl.addEventListener("touchend", hidePopup);
+
+      if (seg !== selectedSeg) {
+        segEl.addEventListener("click", () => {
+          const clicked = new Date(refUtcMidnight.getTime() + seg * 3600000);
+          const hh = String(clicked.getHours()).padStart(2, "0");
+          const mm = String(clicked.getMinutes()).padStart(2, "0");
+          document.getElementById("mp-time").value = `${hh}:${mm}`;
+          renderMeetingPlanner();
+        });
+      }
       segDivs.push(segEl);
       bar.appendChild(segEl);
     }
+
+    // Midnight marker: find the seg where local date changes (midnight crossed)
+    for (let seg = 1; seg < 24; seg++) {
+      const prevDate = new Date(refUtcMidnight.getTime() + (seg - 1) * 3600000);
+      const currDate = new Date(refUtcMidnight.getTime() + seg * 3600000);
+      const prevHour = getTimeParts(prevDate, z.tz).hour;
+      const currHour = getTimeParts(currDate, z.tz).hour;
+      if (prevHour > currHour) { // midnight crossed
+        const midnightLine = document.createElement("div");
+        midnightLine.className = "overlap-midnight";
+        midnightLine.style.left = ((seg / 24) * 100) + "%";
+        midnightLine.title = "Midnight";
+        bar.appendChild(midnightLine);
+      }
+    }
+
+    // Selected time vertical line
+    const selLine = document.createElement("div");
+    selLine.className = "overlap-selected-line";
+    selLine.style.left = ((selectedSeg / 24) * 100) + "%";
+    bar.appendChild(selLine);
+    allBars.push(bar);
 
     const onHourChange = () => {
       const newWs = Math.max(0, Math.min(23, parseInt(startIn.value) || 0));
@@ -1625,7 +1903,7 @@ function renderMeetingPlanner() {
     overlapEl.appendChild(row);
   });
 
-  // Apply best/partial highlight
+  // Apply best/partial highlight + selected-segment pulse
   for (let seg = 0; seg < 24; seg++) {
     if (seg === 0) continue; // skip "now" marker
     if (bestSegs.has(seg)) {
@@ -1633,22 +1911,131 @@ function renderMeetingPlanner() {
     } else if (partialSegs.has(seg)) {
       allSegDivs.forEach(segs => segs[seg].classList.add("overlap-partial"));
     }
+    if (seg === selectedSeg) {
+      allSegDivs.forEach(segs => segs[seg].classList.add("overlap-selected-seg"));
+    }
   }
+
+  // Helper: format a seg offset as a time string in the first sorted zone
+  const segToTime = (seg) => {
+    const d = new Date(refUtcMidnight.getTime() + seg * 3600000);
+    return d.toLocaleTimeString("en-US", {
+      timeZone: sortedZones[0].tz, hour: "2-digit", minute: "2-digit", hour12: !use24h
+    });
+  };
+
+  // Helper: format a time for a given zone at a given seg offset
+  const segToTimeInZone = (seg, tz) => {
+    const d = new Date(refUtcMidnight.getTime() + seg * 3600000);
+    return d.toLocaleTimeString("en-US", {
+      timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: !use24h
+    });
+  };
+
+  // Helper: day difference at windowSeg vs refDate for a given zone
+  const dayDiff = (seg, tz) => {
+    const at  = new Date(refUtcMidnight.getTime() + seg * 3600000);
+    const refDay = new Date(refUtcMidnight.toLocaleDateString("en-US", { timeZone: tz }));
+    const atDay  = new Date(at.toLocaleDateString("en-US",  { timeZone: tz }));
+    return Math.round((atDay - refDay) / 86400000);
+  };
+
+  // Pick the best window seg to display (start of best or partial)
+  const windowSegs = bestSegs.size > 0 ? [...bestSegs].sort((a,b) => a-b) : [...partialSegs].sort((a,b) => a-b);
+  const windowSeg  = windowSegs.length > 0 ? windowSegs[0] : null;
 
   // Summary line
   const summaryEl = document.createElement("div");
   summaryEl.className = "mp-overlap-summary";
   if (bestSegs.size > 0) {
+    const sortedBest = [...bestSegs].sort((a, b) => a - b);
+    const startTime = segToTime(sortedBest[0]);
+    const endTime   = segToTime(sortedBest[sortedBest.length - 1] + 1);
     summaryEl.className += " good";
-    summaryEl.textContent = `✅ ${bestSegs.size}h full overlap window (all ${zones.length} cities)`;
+    summaryEl.textContent = `✅ ${bestSegs.size}h full overlap — ${startTime} to ${endTime} (${sortedZones[0].city} time)`;
   } else if (maxOverlap > 0) {
+    const sortedPartial = [...partialSegs].sort((a, b) => a - b);
+    const startTime = segToTime(sortedPartial[0]);
+    const endTime   = segToTime(sortedPartial[sortedPartial.length - 1] + 1);
     summaryEl.className += " warn";
-    summaryEl.textContent = `⚠️ No full overlap — best: ${maxOverlap}/${zones.length} cities overlap for ${partialSegs.size}h`;
+    summaryEl.textContent = `⚠️ No full overlap — best ${maxOverlap}/${sortedZones.length} cities: ${startTime} to ${endTime} (${sortedZones[0].city} time)`;
   } else {
     summaryEl.className += " none";
-    summaryEl.textContent = `❌ No working-hours overlap found`;
+    // Find best compromise: seg with fewest people outside work (closest to max)
+    const bestScore = Math.max(...segWorking);
+    if (bestScore > 0) {
+      const bestCompSeg = segWorking.indexOf(bestScore);
+      const lines = sortedZones.map(z => {
+        const t = segToTimeInZone(bestCompSeg, z.tz);
+        return `${z.city} ${t}`;
+      }).join(" · ");
+      summaryEl.textContent = `❌ No working-hours overlap — closest: ${lines}`;
+    } else {
+      summaryEl.textContent = `❌ No working-hours overlap found`;
+    }
   }
   overlapEl.appendChild(summaryEl);
+
+  // Window table — show each city's time at the best overlap start
+  if (windowSeg !== null) {
+    const table = document.createElement("table");
+    table.className = "mp-window-table";
+    sortedZones.forEach(z => {
+      const tr = document.createElement("tr");
+      const tdCity = document.createElement("td");
+      tdCity.textContent = z.city;
+
+      const tdTime = document.createElement("td");
+      const t1 = segToTimeInZone(windowSeg, z.tz);
+      const t2 = segToTimeInZone(windowSeg + (windowSegs.length > 1 ? windowSegs.length : 1), z.tz);
+      tdTime.textContent = windowSegs.length > 1 ? `${t1} – ${t2}` : t1;
+
+      // Day change badge
+      const diff = dayDiff(windowSeg, z.tz);
+      if (diff !== 0) {
+        const badge = document.createElement("span");
+        badge.className = "mp-day-badge " + (diff > 0 ? "plus" : "minus");
+        badge.textContent = diff > 0 ? `+${diff}` : `${diff}`;
+        tdTime.appendChild(badge);
+      }
+
+      // Tz abbreviation + UTC offset
+      const tdAbbr = document.createElement("td");
+      const _abbrNow = new Date(refUtcMidnight.getTime() + windowSeg * 3600000);
+      const _abbr = tzAbbr(z.tz, _abbrNow);
+      const _off  = tzOffsetStr(z.tz, _abbrNow);
+      tdAbbr.textContent = _abbr ? `${_abbr} (${_off})` : _off;
+
+      tr.appendChild(tdCity); tr.appendChild(tdTime); tr.appendChild(tdAbbr);
+      table.appendChild(tr);
+    });
+    overlapEl.appendChild(table);
+
+    // Copy button
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "mp-copy-btn";
+    copyBtn.textContent = "📋 Copy times";
+    copyBtn.addEventListener("click", () => {
+      const lines = sortedZones.map(z => {
+        const t1   = segToTimeInZone(windowSeg, z.tz);
+        const t2   = segToTimeInZone(windowSeg + (windowSegs.length > 1 ? windowSegs.length : 1), z.tz);
+        const range = windowSegs.length > 1 ? `${t1} – ${t2}` : t1;
+        const ab   = tzAbbr(z.tz, new Date(refUtcMidnight.getTime() + windowSeg * 3600000));
+        const off  = tzOffsetStr(z.tz, new Date(refUtcMidnight.getTime() + windowSeg * 3600000));
+        const abOff = ab ? `${ab} (${off})` : off;
+        const diff = dayDiff(windowSeg, z.tz);
+        const dayTag = diff !== 0 ? ` (${diff > 0 ? "+" : ""}${diff} day)` : "";
+        return `${z.city}: ${range} ${abOff}${dayTag}`;
+      });
+      const dateStr2 = refDate.toLocaleDateString("en-US", { weekday:"short", month:"short", day:"numeric" });
+      const text = `Meeting on ${dateStr2}\n` + lines.join("\n");
+      navigator.clipboard?.writeText(text).then(() => {
+        copyBtn.textContent = "✅ Copied!";
+        setTimeout(() => { copyBtn.textContent = "📋 Copy times"; }, 2000);
+      });
+    });
+    overlapEl.appendChild(copyBtn);
+  }
 }
 
 document.getElementById("mp-time").addEventListener("input", renderMeetingPlanner);
@@ -1986,9 +2373,32 @@ tick();
 setInterval(tick, 1000);
 setInterval(() => zones.forEach(fetchWeather), WEATHER_TTL);
 
+// Use GPS to get accurate coordinates for the local zone if it has none
+function tryGeolocateLocal() {
+  if (!navigator.geolocation) return;
+  const myTz = localTz();
+  const local = zones.find(z => z.tz === myTz);
+  if (!local || (local.lat != null && local.lon != null)) return;
+  navigator.geolocation.getCurrentPosition(pos => {
+    local.lat = parseFloat(pos.coords.latitude.toFixed(4));
+    local.lon = parseFloat(pos.coords.longitude.toFixed(4));
+    saveZones();
+    fetchWeather(local);
+  }, () => {}); // silently ignore denial
+}
+tryGeolocateLocal();
+
+// Re-render on resize so clock canvas scales to new size
+let lastClockSize = getClockSize();
+window.addEventListener("resize", () => {
+  const newSize = getClockSize();
+  if (newSize !== lastClockSize) { lastClockSize = newSize; render(); }
+});
+
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/world-clock/sw.js");
+  navigator.serviceWorker.register("sw.js");
 }
 </script>
+<div class="mp-seg-popup" id="mp-seg-popup"></div>
 </body>
 </html>
